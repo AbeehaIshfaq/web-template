@@ -14,7 +14,7 @@ const isEmptySort = sort => sort.constructor === Object && Object.keys(sort).len
 
 /**
  * InboxSearchForm component
- * 
+ *
  * Class for all inbox sorting/filtering options - customizations should be added here.
  * Currently only contains sorting functionality.
  *
