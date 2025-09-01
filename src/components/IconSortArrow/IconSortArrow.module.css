@@ -1,0 +1,13 @@
+.root {
+  fill: var(--marketplaceColor);
+}
+
+.icon {
+  position: relative;
+  margin-left: 12px;
+  transition: all 0.2s ease-out;
+
+  @media (--viewportMedium) {
+    margin-left: 36px;
+  }
+}
