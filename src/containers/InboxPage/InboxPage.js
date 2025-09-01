@@ -1,9 +1,12 @@
 import React from 'react';
+import { useHistory } from 'react-router-dom';
 import { compose } from 'redux';
 import { connect } from 'react-redux';
 import classNames from 'classnames';
 
 import { useConfiguration } from '../../context/configurationContext';
+import { useRouteConfiguration } from '../../context/routeConfigurationContext';
+import { createResourceLocatorString } from '../../util/routes';
 
 import { FormattedMessage, intlShape, useIntl } from '../../util/reactIntl';
 import {
@@ -45,6 +48,7 @@ import {
 import TopbarContainer from '../../containers/TopbarContainer/TopbarContainer';
 import FooterContainer from '../../containers/FooterContainer/FooterContainer';
 import NotFoundPage from '../../containers/NotFoundPage/NotFoundPage';
+import InboxSearchForm from './InboxSearchForm/InboxSearchForm';
 
 import { stateDataShape, getStateData } from './InboxPage.stateData';
 import css from './InboxPage.module.css';
@@ -112,6 +116,25 @@ const BookingTimeInfoMaybe = props => {
       {...rest}
     />
   );
+};
+
+// Build and push path string for routing - based on sort selection as selected in InboxSearchForm
+const handleSortSelect = (tab, routeConfiguration, history) => urlParam => {
+  const pathParams = {
+    tab: tab,
+  };
+  const searchParams = {
+    sort: urlParam,
+  };
+
+  const sortPath = createResourceLocatorString(
+    'InboxPage',
+    routeConfiguration,
+    pathParams,
+    searchParams
+  );
+
+  history.push(sortPath);
 };
 
 /**
@@ -243,6 +266,8 @@ export const InboxPageComponent = props => {
   const ordersTitle = intl.formatMessage({ id: 'InboxPage.ordersTitle' });
   const salesTitle = intl.formatMessage({ id: 'InboxPage.salesTitle' });
   const title = isOrders ? ordersTitle : salesTitle;
+  const routeConfiguration = useRouteConfiguration();
+  const history = useHistory();
 
   const pickType = lt => conf => conf.listingType === lt;
   const findListingTypeConfig = publicData => {
@@ -350,6 +375,14 @@ export const InboxPageComponent = props => {
         }
         footer={<FooterContainer />}
       >
+        <InboxSearchForm
+          onSubmit={() => {}}
+          onSelect={handleSortSelect(tab, routeConfiguration, history)}
+          intl={intl}
+          tab={tab}
+          routeConfiguration={routeConfiguration}
+          history={history}
+        />
         {fetchOrdersOrSalesError ? (
           <p className={css.error}>
             <FormattedMessage id="InboxPage.fetchFailed" />
