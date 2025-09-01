@@ -249,3 +249,17 @@ export const twitterPageURL = twitterHandle => {
   }
   return null;
 };
+
+// Check that the provided sort matches one of the accepted options
+
+/**
+ * Validates inbox sort parameter
+ *
+ * @param {String} sort - Sort parameter
+ *
+ * @return {Object} Returns sort parameter if valid, otherwise empty object
+ */
+export const getValidInboxSort = sort => {
+  const validOptions = ['createdAt', 'lastMessageAt', 'lastTransitionedAt'];
+  return validOptions.includes(sort) ? { sort } : {};
+};
