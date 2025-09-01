@@ -1,27 +1,12 @@
 import React, { useState } from 'react';
 import classNames from 'classnames';
 
-import { Menu, MenuContent, MenuItem, MenuLabel } from '../../../components';
+import { IconSortArrow, Menu, MenuContent, MenuItem, MenuLabel } from '../../../components';
 import css from './SortByPopup.module.css';
 
 const optionLabel = (options, key) => {
   const option = options.find(o => o.key === key);
   return option ? option.label : key;
-};
-
-const SortByIcon = props => {
-  const classes = classNames(css.icon, props.className);
-  // extra small arrow head (down)
-  return (
-    <svg className={classes} width="8" height="5" xmlns="http://www.w3.org/2000/svg">
-      <path
-        d="M3.764 4.236c.131.13.341.13.472 0l2.666-2.667a.333.333 0 10-.471-.471L4 3.528l-2.43-2.43a.333.333 0 10-.471.471l2.665 2.667z"
-        fill="#4A4A4A"
-        stroke="#4A4A4A"
-        fillRule="evenodd"
-      />
-    </svg>
-  );
 };
 
 /**
@@ -82,7 +67,7 @@ const SortByPopup = props => {
     >
       <MenuLabel rootClassName={menuLabelClasses}>
         {menuLabel}
-        <SortByIcon className={iconArrowClassName} />
+        <IconSortArrow className={iconArrowClassName} />
       </MenuLabel>
       <MenuContent className={css.menuContent}>
         {options.map(option => {
