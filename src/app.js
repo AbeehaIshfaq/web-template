@@ -17,6 +17,7 @@ import configureStore from './store';
 // utils
 import { RouteConfigurationProvider } from './context/routeConfigurationContext';
 import { ConfigurationProvider } from './context/configurationContext';
+import { CurrencyProvider } from './context/CurrencyContext'; // ADD THIS IMPORT
 import { mergeConfig } from './util/configHelpers';
 import { IntlProvider } from './util/reactIntl';
 import { includeCSSProperties } from './util/style';
@@ -148,9 +149,13 @@ const Configurations = props => {
 
   return (
     <ConfigurationProvider value={appConfig}>
-      <MomentLocaleLoader locale={locale}>
-        <RouteConfigurationProvider value={routeConfig}>{children}</RouteConfigurationProvider>
-      </MomentLocaleLoader>
+      <CurrencyProvider>
+        <MomentLocaleLoader locale={locale}>
+          <RouteConfigurationProvider value={routeConfig}>
+            {children}
+          </RouteConfigurationProvider>
+        </MomentLocaleLoader>
+      </CurrencyProvider>
     </ConfigurationProvider>
   );
 };

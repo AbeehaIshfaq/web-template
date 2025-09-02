@@ -1,4 +1,5 @@
 import React from 'react';
+import { useCurrency } from '../../context/CurrencyContext';
 import { bool, func, object, shape, string, oneOf } from 'prop-types';
 import { compose } from 'redux';
 import { withRouter } from 'react-router-dom';
@@ -129,6 +130,12 @@ const pickRenderableImages = (
  */
 export const EditListingPageComponent = props => {
   const intl = useIntl();
+  const { detectedCountry } = useCurrency();
+   console.log('🎯 EDITLISTINGPAGE DEBUG:', {
+    detectedCountry,
+    currencyContextData: { detectedCountry }
+  });
+
   const {
     currentUser,
     createStripeAccountError,
@@ -288,7 +295,7 @@ export const EditListingPageComponent = props => {
           onAddAvailabilityException={onAddAvailabilityException}
           onDeleteAvailabilityException={onDeleteAvailabilityException}
           onUpdateListing={onUpdateListing}
-          onCreateListingDraft={onCreateListingDraft}
+          onCreateListingDraft={(values, config) => onCreateListingDraft(values, config, detectedCountry)}
           onPublishListingDraft={onPublishListingDraft}
           onPayoutDetailsChange={onPayoutDetailsChange}
           onPayoutDetailsSubmit={onPayoutDetailsSubmit}

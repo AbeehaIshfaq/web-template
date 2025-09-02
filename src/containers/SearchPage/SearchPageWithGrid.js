@@ -7,6 +7,7 @@ import classNames from 'classnames';
 
 import { useConfiguration } from '../../context/configurationContext';
 import { useRouteConfiguration } from '../../context/routeConfigurationContext';
+import { useCurrency } from '../../context/CurrencyContext'; // ADD THIS IMPORT
 
 import { useIntl, FormattedMessage } from '../../util/reactIntl';
 import {
@@ -60,6 +61,9 @@ import SortBy from './SortBy/SortBy';
 import SearchResultsPanel from './SearchResultsPanel/SearchResultsPanel';
 import NoSearchResultsMaybe from './NoSearchResultsMaybe/NoSearchResultsMaybe';
 
+// ADD THESE IMPORTS
+import { convertListingPrices } from '../../util/currencyConversion';
+
 import css from './SearchPage.module.css';
 
 const MODAL_BREAKPOINT = 768; // Search is in modal on mobile layout
@@ -67,6 +71,56 @@ const MODAL_BREAKPOINT = 768; // Search is in modal on mobile layout
 // SortBy component has its content in dropdown-popup.
 // With this offset we move the dropdown a few pixels on desktop layout.
 const FILTER_DROPDOWN_OFFSET = -14;
+
+// ADD: Enhanced SearchResultsPanel wrapper with currency conversion
+const SearchResultsPanelWithConversion = ({ listings, isCanadian, ...otherProps }) => {
+  const [convertedListings, setConvertedListings] = React.useState(listings);
+  const [isConverting, setIsConverting] = React.useState(false);
+
+  React.useEffect(() => {
+    console.log('📊 SearchResultsPanelWithConversion (Grid): Starting currency conversion', {
+      listingsCount: listings?.length || 0,
+      isCanadian,
+      hasListings: !!listings
+    });
+
+    const convertPrices = async () => {
+      if (!isCanadian || !listings || listings.length === 0) {
+        console.log('⏭️ SearchResultsPanelWithConversion (Grid): No conversion needed');
+        setConvertedListings(listings);
+        return;
+      }
+
+      setIsConverting(true);
+      console.log('🇨🇦 SearchResultsPanelWithConversion (Grid): Converting prices for Canadian user...');
+
+      try {
+        const converted = await convertListingPrices(listings, isCanadian);
+        console.log('✅ SearchResultsPanelWithConversion (Grid): Currency conversion completed');
+        setConvertedListings(converted);
+      } catch (error) {
+        console.error('💥 SearchResultsPanelWithConversion (Grid): Error converting prices:', error);
+        setConvertedListings(listings); // Fallback to original
+      } finally {
+        setIsConverting(false);
+      }
+    };
+
+    convertPrices();
+  }, [listings, isCanadian]);
+
+  if (isConverting) {
+    console.log('⏳ SearchResultsPanelWithConversion (Grid): Showing conversion loading state');
+  }
+
+  return (
+    <SearchResultsPanel
+      {...otherProps}
+      listings={convertedListings}
+      isConverting={isConverting}
+    />
+  );
+};
 
 export class SearchPageComponent extends Component {
   constructor(props) {
@@ -236,7 +290,14 @@ export class SearchPageComponent extends Component {
       config,
       params: currentPathParams = {},
       currentUser,
+      isCanadian, // ADD: Get isCanadian prop
     } = this.props;
+
+    console.log('📊 SearchPageComponent (Grid) render:', { 
+      listingsCount: listings?.length || 0,
+      isCanadian,
+      searchInProgress 
+    });
 
     // If the search page variant is of type /s/:listingType, this defines the :listingType
     // path parameter used to filter the whole page.
@@ -478,9 +539,11 @@ export class SearchPageComponent extends Component {
                     <FormattedMessage id="SearchPage.invalidDatesFilter" />
                   </H5>
                 ) : null}
-                <SearchResultsPanel
+                {/* MODIFIED: Use SearchResultsPanelWithConversion */}
+                <SearchResultsPanelWithConversion
                   className={css.searchListingsPanel}
                   listings={listings}
+                  isCanadian={isCanadian}
                   pagination={listingsAreLoaded ? pagination : null}
                   search={parse(location.search)}
                   isMapVariant={false}
@@ -498,17 +561,6 @@ export class SearchPageComponent extends Component {
 
 /**
  * SearchPage component with grid layout (no map)
- *
- * @param {Object} props
- * @param {propTypes.currentUser} [props.currentUser] - The current user
- * @param {Array<propTypes.listing>} [props.listings] - The listings
- * @param {propTypes.pagination} [props.pagination] - The pagination
- * @param {boolean} [props.scrollingDisabled] - Whether the scrolling is disabled
- * @param {boolean} [props.searchInProgress] - Whether the search is in progress
- * @param {propTypes.error} [props.searchListingsError] - The search listings error
- * @param {Object} [props.searchParams] - The search params from the Redux state
- * @param {Function} [props.onManageDisableScrolling] - The function to manage the disable scrolling
- * @returns {JSX.Element}
  */
 const EnhancedSearchPage = props => {
   const config = useConfiguration();
@@ -516,6 +568,12 @@ const EnhancedSearchPage = props => {
   const intl = useIntl();
   const history = useHistory();
   const location = useLocation();
+  const { isCanadian } = useCurrency(); // ADD: Get currency context
+
+  console.log('📊 EnhancedSearchPage (Grid):', { 
+    isCanadian,
+    hasConfig: !!config 
+  });
 
   const searchListingsError = props.searchListingsError;
   if (isForbiddenError(searchListingsError)) {
@@ -559,11 +617,13 @@ const EnhancedSearchPage = props => {
       history={history}
       location={location}
       currentUser={currentUser}
+      isCanadian={isCanadian} // ADD: Pass currency context
       {...restOfProps}
     />
   );
 };
 
+// MODIFIED: Add currency context to mapStateToProps
 const mapStateToProps = state => {
   const { currentUser } = state.user;
   const {
@@ -573,7 +633,14 @@ const mapStateToProps = state => {
     searchListingsError,
     searchParams,
   } = state.SearchPage;
+  
   const listings = getListingsById(state, currentPageResultIds);
+
+  console.log('📊 SearchPageWithGrid mapStateToProps:', {
+    listingsCount: listings?.length || 0,
+    hasCurrentPageResults: !!currentPageResultIds,
+    searchInProgress
+  });
 
   return {
     currentUser,

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import classNames from 'classnames';
 
 import { useConfiguration } from '../../context/configurationContext';
+import { useCurrency } from '../../context/CurrencyContext'; // ADD THIS IMPORT
 
 import { FormattedMessage, useIntl } from '../../util/reactIntl';
 import {
@@ -11,6 +12,7 @@ import {
 } from '../../util/configHelpers';
 import { lazyLoadWithDimensions } from '../../util/uiHelpers';
 import { formatMoney } from '../../util/currency';
+import { convertPriceForUser } from '../../util/currencyConversion'; // ADD THIS IMPORT
 import { ensureListing, ensureUser } from '../../util/data';
 import { richText } from '../../util/richText';
 import { createSlug } from '../../util/urlHelpers';
@@ -27,39 +29,121 @@ import css from './ListingCard.module.css';
 
 const MIN_LENGTH_FOR_LONG_WORDS = 10;
 
-const priceData = (price, currency, intl) => {
-  if (price && price.currency === currency) {
-    const formattedPrice = formatMoney(intl, price);
+// MODIFIED: Enhanced priceData function with currency conversion and debugging
+const priceData = async (price, currency, intl, isCanadian) => {
+  console.log('💰 ListingCard priceData called:', { 
+    price, 
+    currency, 
+    isCanadian,
+    priceExists: !!price,
+    priceCurrency: price?.currency,
+    priceAmount: price?.amount 
+  });
+  
+  if (!price) {
+    console.log('💰 No price provided to priceData');
+    return {};
+  }
+
+  // Convert price for Canadian users
+  console.log('🔄 Calling convertPriceForUser from ListingCard...');
+  const displayPrice = await convertPriceForUser(price, isCanadian);
+  console.log('✅ Received converted price:', { 
+    originalPrice: price,
+    displayPrice,
+    conversionHappened: displayPrice !== price 
+  });
+  
+  if (displayPrice && displayPrice.currency === currency) {
+    const formattedPrice = formatMoney(intl, displayPrice);
+    console.log('💰 Price formatted successfully:', { 
+      displayPrice, 
+      formattedPrice 
+    });
     return { formattedPrice, priceTitle: formattedPrice };
-  } else if (price) {
+  } else if (displayPrice) {
+    console.log('⚠️ Currency mismatch - using unsupported price format:', { 
+      displayPriceCurrency: displayPrice.currency, 
+      expectedCurrency: currency 
+    });
     return {
       formattedPrice: intl.formatMessage(
         { id: 'ListingCard.unsupportedPrice' },
-        { currency: price.currency }
+        { currency: displayPrice.currency }
       ),
       priceTitle: intl.formatMessage(
         { id: 'ListingCard.unsupportedPriceTitle' },
-        { currency: price.currency }
+        { currency: displayPrice.currency }
       ),
     };
   }
+  
+  console.log('💰 No displayPrice available - returning empty object');
   return {};
 };
 
 const LazyImage = lazyLoadWithDimensions(ResponsiveImage, { loadAfterInitialRendering: 3000 });
 
+// MODIFIED: Enhanced PriceMaybe component with async price conversion
 const PriceMaybe = props => {
-  const { price, publicData, config, intl, listingTypeConfig } = props;
+  const { price, publicData, config, intl, listingTypeConfig, isCanadian } = props;
+  const [priceState, setPriceState] = useState({ formattedPrice: '', priceTitle: '' });
+  const [isLoading, setIsLoading] = useState(true);
+
   const showPrice = displayPrice(listingTypeConfig);
   if (!showPrice && price) {
     return null;
   }
 
+  // Convert price asynchronously
+  useEffect(() => {
+    console.log('🔄 PriceMaybe useEffect triggered:', { 
+      price, 
+      isCanadian, 
+      showPrice,
+      currencyConfig: config.currency 
+    });
+    
+    const convertPrice = async () => {
+      setIsLoading(true);
+      console.log('⏳ Starting price conversion in PriceMaybe...');
+      
+      try {
+        const convertedPriceData = await priceData(price, config.currency, intl, isCanadian);
+        console.log('✅ Price conversion completed in PriceMaybe:', convertedPriceData);
+        setPriceState(convertedPriceData);
+      } catch (error) {
+        console.error('💥 Error converting price in PriceMaybe:', error);
+        // Fallback to original price
+        const fallbackData = price ? {
+          formattedPrice: formatMoney(intl, price),
+          priceTitle: formatMoney(intl, price)
+        } : {};
+        console.log('🔄 Using fallback price data:', fallbackData);
+        setPriceState(fallbackData);
+      } finally {
+        console.log('🏁 Price conversion process finished');
+        setIsLoading(false);
+      }
+    };
+
+    convertPrice();
+  }, [price, config.currency, intl, isCanadian]);
+
   const isPriceVariationsInUse = isPriceVariationsEnabled(publicData, listingTypeConfig);
   const hasMultiplePriceVariants = isPriceVariationsInUse && publicData?.priceVariants?.length > 1;
-
   const isBookable = isBookingProcessAlias(publicData?.transactionProcessAlias);
-  const { formattedPrice, priceTitle } = priceData(price, config.currency, intl);
+
+  const { formattedPrice, priceTitle } = priceState;
+
+  // Show loading state briefly
+  if (isLoading && !formattedPrice) {
+    return (
+      <div className={css.price} title="Loading price...">
+        <span className={css.priceValue}>...</span>
+      </div>
+    );
+  }
 
   const priceValue = <span className={css.priceValue}>{formattedPrice}</span>;
   const pricePerUnit = isBookable ? (
@@ -166,6 +250,7 @@ const ListingCardImage = props => {
 export const ListingCard = props => {
   const config = useConfiguration();
   const intl = props.intl || useIntl();
+  const { isCanadian } = useCurrency(); // ADD THIS: Get user's currency context
 
   const {
     className,
@@ -226,6 +311,7 @@ export const ListingCard = props => {
           config={config}
           intl={intl}
           listingTypeConfig={foundListingTypeConfig}
+          isCanadian={isCanadian} // PASS: Canadian flag to PriceMaybe
         />
         <div className={css.mainInfo}>
           {showListingImage && (

@@ -601,15 +601,34 @@ const updateStockOfListingMaybe = (listingId, stockTotals, dispatch) => {
 // NOTE: we want to keep it possible to include stock management field to the first wizard form.
 // this means that there needs to be a sequence of calls:
 // create, set stock, show listing (to get updated currentStock entity)
-export function requestCreateListingDraft(data, config) {
+export function requestCreateListingDraft(data, config, detectedCountry) {
   return (dispatch, getState, sdk) => {
     dispatch(createListingDraftRequest(data));
     const { stockUpdate, images, ...rest } = data;
 
+    // AUTO-TAG SELLER'S LOCATION_COUNTRY BASED ON LOCATION DETECTION
+    // Business Logic:
+    // - Canadian sellers: tag with 'CA' 
+    // - US sellers: tag with 'US'
+    // - All other sellers: tag with 'US' (default to US market)
+    const sellerLocationCountry = detectedCountry === 'CA' ? 'CA' : 'US';
+    
+    // Inject seller's location_country into publicData
+    const publicDataWithLocationCountry = {
+      ...rest.publicData,
+      location_country: sellerLocationCountry
+    };
+
+    console.log('🏷️ Auto-tagging listing with seller location_country:', sellerLocationCountry);
+
     // If images should be saved, create array out of the image UUIDs for the API call
     // Note: in this template, image upload is not happening at the same time as listing creation.
     const imageProperty = typeof images !== 'undefined' ? { images: imageIds(images) } : {};
-    const ownListingValues = { ...imageProperty, ...rest };
+    const ownListingValues = { 
+      ...imageProperty, 
+      ...rest,
+      publicData: publicDataWithLocationCountry // Override publicData with location_country
+    };
 
     const imageVariantInfo = getImageVariantInfo(config.layout.listingImage);
     const queryParams = {
@@ -639,6 +658,7 @@ export function requestCreateListingDraft(data, config) {
       });
   };
 }
+
 
 // Update the given tab of the wizard with the given data. This saves
 // the data to the listing, and marks the tab updated so the UI can
