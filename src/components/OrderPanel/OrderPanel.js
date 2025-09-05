@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, useHistory } from 'react-router-dom';
 import loadable from '@loadable/component';
 import classNames from 'classnames';
+import { useCurrency } from '../../context/CurrencyContext'; // ADD THIS
+import { convertPriceForUser } from '../../util/currencyConversion'; // ADD THIS
 
 import { FormattedMessage, useIntl } from '../../util/reactIntl';
 import {
@@ -36,6 +38,7 @@ import {
 import { ModalInMobile, PrimaryButton, AvatarSmall, H1, H2 } from '../../components';
 import PriceVariantPicker from './PriceVariantPicker/PriceVariantPicker';
 
+
 import css from './OrderPanel.module.css';
 
 const BookingTimeForm = loadable(() =>
@@ -66,19 +69,29 @@ const isPublishedListing = listing => {
   return listing.attributes.state === LISTING_STATE_PUBLISHED;
 };
 
-const priceData = (price, currency, intl) => {
-  if (price && price.currency === currency) {
-    const formattedPrice = formatMoney(intl, price);
-    return { formattedPrice, priceTitle: formattedPrice };
-  } else if (price) {
+const priceData = async (price, currency, intl, isCanadian) => {
+  if (!price) {
+    return {};
+  }
+
+  try {
+    // Convert price for user's preferred currency
+    const displayPrice = await convertPriceForUser(price, isCanadian);
+    
+    if (displayPrice) {
+      const formattedPrice = formatMoney(intl, displayPrice);
+      return { formattedPrice, priceTitle: formattedPrice };
+    }
+  } catch (error) {
+    console.error('Error in priceData:', error);
     return {
       formattedPrice: `(${price.currency})`,
       priceTitle: `Unsupported currency (${price.currency})`,
     };
   }
+  
   return {};
 };
-
 const getCheapestPriceVariant = (priceVariants = []) => {
   return priceVariants.reduce((cheapest, current) => {
     return current.priceInSubunits < cheapest.priceInSubunits ? current : cheapest;
@@ -120,6 +133,11 @@ const handleSubmit = (
 ) => {
   // TODO: currently, inquiry-process does not have any form to ask more order data.
   // We can submit without opening any inquiry/order modal.
+  console.log('🔍 handleSubmit params:', {
+    isOwnListing,
+    isClosed,
+    isInquiryWithoutPayment
+  });
   return isInquiryWithoutPayment
     ? () => onSubmit({})
     : () => openOrderModal(isOwnListing, isClosed, history, location);
@@ -135,9 +153,13 @@ const PriceMaybe = props => {
     intl,
     marketplaceCurrency,
     showCurrencyMismatch = false,
+    isCanadian,
   } = props;
-  const { listingType, unitType } = publicData || {};
 
+  const [priceState, setPriceState] = useState({ formattedPrice: '', priceTitle: '' });
+  const [isLoading, setIsLoading] = useState(true);
+
+  const { listingType, unitType } = publicData || {};
   const foundListingTypeConfig = validListingTypes.find(conf => conf.listingType === listingType);
   const showPrice = displayPrice(foundListingTypeConfig);
   const isPriceVariationsInUse = !!publicData?.priceVariationsEnabled;
@@ -147,19 +169,48 @@ const PriceMaybe = props => {
     return null;
   }
 
-  // Get formatted price or currency code if the currency does not match with marketplace currency
-  const { formattedPrice, priceTitle } = priceData(price, marketplaceCurrency, intl);
+  // Convert price asynchronously
+  useEffect(() => {
+    const convertPrice = async () => {
+      setIsLoading(true);
+      try {
+        const convertedPriceData = await priceData(price, marketplaceCurrency, intl, isCanadian);
+        setPriceState(convertedPriceData);
+      } catch (error) {
+        console.error('Error converting price in OrderPanel PriceMaybe:', error);
+        const fallbackData = price ? {
+          formattedPrice: formatMoney(intl, price),
+          priceTitle: formatMoney(intl, price)
+        } : {};
+        setPriceState(fallbackData);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    convertPrice();
+  }, [price, marketplaceCurrency, intl, isCanadian]);
+
+  const { formattedPrice, priceTitle } = priceState;
+
+  if (isLoading && !formattedPrice) {
+    return (
+      <div className={css.priceContainer}>
+        <p className={css.price}>Loading price...</p>
+      </div>
+    );
+  }
+
   const priceValue = (
-    <span className={css.priceValue}>{formatMoneyIfSupportedCurrency(price, intl)}</span>
+    <span className={css.priceValue}>{formattedPrice}</span>
   );
+
   const pricePerUnit = (
     <span className={css.perUnit}>
       <FormattedMessage id="OrderPanel.perUnit" values={{ unitType }} />
     </span>
   );
 
-  // TODO: In CTA, we don't have space to show proper error message for a mismatch of marketplace currency
-  //       Instead, we show the currency code in place of the price
   return showCurrencyMismatch ? (
     <div className={css.priceContainerInCTA}>
       <div className={css.priceValueInCTA} title={priceTitle}>
@@ -263,13 +314,17 @@ const hasValidPriceVariants = priceVariants => {
  */
 const OrderPanel = props => {
   const [mounted, setMounted] = useState(false);
+  const [convertedPrice, setConvertedPrice] = useState(null);
+  const [priceConversionLoading, setPriceConversionLoading] = useState(true);
   const intl = useIntl();
   const location = useLocation();
   const history = useHistory();
+  const { isCanadian, getCurrencyInfo } = useCurrency();
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
   const {
     rootClassName,
     className,
@@ -299,6 +354,8 @@ const OrderPanel = props => {
     showListingImage,
   } = props;
 
+    console.log('OrderPanel onSubmit prop:', onSubmit);
+
   const publicData = listing?.attributes?.publicData || {};
   const { listingType, unitType, transactionProcessAlias = '', priceVariants, startTimeInterval } =
     publicData || {};
@@ -307,10 +364,38 @@ const OrderPanel = props => {
   const lineItemUnitType = lineItemUnitTypeMaybe || `line-item/${unitType}`;
 
   const price = listing?.attributes?.price;
+    useEffect(() => {
+    const convertListingPrice = async () => {
+      if (price) {
+        setPriceConversionLoading(true);
+        try {
+          const converted = await convertPriceForUser(price, isCanadian);
+          setConvertedPrice(converted);
+        } catch (error) {
+          console.error('Error converting price in OrderPanel:', error);
+          setConvertedPrice(price);
+        } finally {
+          setPriceConversionLoading(false);
+        }
+      } else {
+        setPriceConversionLoading(false);
+      }
+    };
+
+    convertListingPrice();
+  }, [price, isCanadian]);
+
   const isPaymentProcess = processName !== INQUIRY_PROCESS_NAME;
 
   const showPriceMissing = isPaymentProcess && !price;
-  const showInvalidCurrency = isPaymentProcess && price?.currency !== marketplaceCurrency;
+  // Instead of just checking marketplace currency, check if user intentionally selected this currency
+  const currencyInfo = getCurrencyInfo();
+  const showInvalidCurrency = isPaymentProcess && 
+  convertedPrice && 
+  !priceConversionLoading && 
+  convertedPrice.currency !== marketplaceCurrency &&
+  convertedPrice === price && // Conversion failed
+  !currencyInfo.isManualSelection; // Don't show error for manual selections
 
   const timeZone = listing?.attributes?.availabilityPlan?.timezone;
   const isClosed = listing?.attributes?.state === LISTING_STATE_CLOSED;
@@ -385,6 +470,11 @@ const OrderPanel = props => {
   const showInvalidPriceVariantsMessage =
     isPriceVariationsInUse && !hasValidPriceVariants(priceVariants);
 
+    const debugOnSubmit = (...args) => {
+    console.log('OrderPanel onSubmit called with:', args);
+    return onSubmit(...args);
+  };
+
   const sharedProps = {
     lineItemUnitType,
     onSubmit,
@@ -410,6 +500,7 @@ const OrderPanel = props => {
 
   const classes = classNames(rootClassName || css.root, className);
   const titleClasses = classNames(titleClassName || css.orderTitle);
+  
 
   return (
     <div className={classes}>
@@ -439,6 +530,7 @@ const OrderPanel = props => {
           validListingTypes={validListingTypes}
           intl={intl}
           marketplaceCurrency={marketplaceCurrency}
+          isCanadian={isCanadian}
         />
 
         <div className={css.author}>
@@ -526,6 +618,7 @@ const OrderPanel = props => {
           intl={intl}
           marketplaceCurrency={marketplaceCurrency}
           showCurrencyMismatch
+          isCanadian={isCanadian}
         />
 
         {isClosed ? (

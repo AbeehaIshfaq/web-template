@@ -3,7 +3,7 @@ import React from 'react';
 // utils
 import { SCHEMA_TYPE_ENUM, SCHEMA_TYPE_MULTI_ENUM, SCHEMA_TYPE_LONG } from '../../util/types';
 import { convertCategoriesToSelectTreeOptions, constructQueryParamName } from '../../util/search';
-
+import StockTypeFilter from './StockTypeFilter/StockTypeFilter.js'; 
 // component imports
 import SelectSingleFilter from './SelectSingleFilter/SelectSingleFilter';
 import SelectMultipleFilter from './SelectMultipleFilter/SelectMultipleFilter';
@@ -120,6 +120,21 @@ const FilterComponent = props => {
         />
       );
     }
+    case 'stockType': {
+      const { filterConfig = {} } = config;
+      const { label } = filterConfig;
+      return (
+        <StockTypeFilter
+          id={componentId}
+          label={label}
+          queryParamNames={['minStock', 'maxStock']}
+          initialValues={initialValues(['minStock', 'maxStock'], liveEdit)}
+          onSubmit={getHandleChangedValueFn(useHistoryPush)}
+          {...rest}
+        />
+      );
+    }
+
     case 'seats': {
       return (
         <SeatsFilter

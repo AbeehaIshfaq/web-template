@@ -1170,7 +1170,7 @@ const mergeUserConfig = (hostedConfig, defaultConfigs) => {
 
   // When debugging, include default configs by passing 'true' here.
   // Otherwise, use user fields from hosted assets.
-  const shouldMerge = mergeDefaultTypesAndFieldsForDebugging(false);
+  const shouldMerge = mergeDefaultTypesAndFieldsForDebugging(true);
   const userTypes = shouldMerge
     ? union(hostedUserTypes, defaultUserTypes, 'userType')
     : hostedUserTypes;
@@ -1346,6 +1346,7 @@ const mergeSearchConfig = (
     seatsFilter,
     priceFilter,
     keywordsFilter,
+    stockTypeFilter,
     sortConfig,
     ...rest
   } = searchConfig || {};

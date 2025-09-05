@@ -292,15 +292,22 @@ export const searchListings = (searchParams, config) => (dispatch, getState, sdk
       : {};
   };
 
-  const stockFilters = datesMaybe => {
+  const stockFilters = (datesMaybe, searchParams) => {
     const hasDatesFilterInUse = Object.keys(datesMaybe).length > 0;
-
+    const hasCustomStockFilter = searchParams.minStock != null || searchParams.maxStock != null;
+      
+      if (hasDatesFilterInUse) {
+        return {};
+      } else if (hasCustomStockFilter) {
+        return { stockMode: 'match-undefined' };
+      } else {
+        return { minStock: 1, stockMode: 'match-undefined' };
+      }
     // If dates filter is not in use,
     //   1) Add minStock filter with default value (1)
     //   2) Add relaxed stockMode: "match-undefined"
     // The latter is used to filter out all the listings that explicitly are out of stock,
     // but keeps bookable and inquiry listings.
-    return hasDatesFilterInUse ? {} : { minStock: 1, stockMode: 'match-undefined' };
   };
 
   const seatsSearchParams = (seats, datesMaybe) => {
@@ -312,6 +319,7 @@ export const searchListings = (searchParams, config) => (dispatch, getState, sdk
   };
 
   const {
+    stockType,
     perPage,
     price,
     dates,
@@ -326,10 +334,10 @@ export const searchListings = (searchParams, config) => (dispatch, getState, sdk
   // We could consider moving them to the prepareAPIParams function too.
   const priceMaybe = priceSearchParams(price);
   const datesMaybe = datesSearchParams(dates);
-  const stockMaybe = stockFilters(datesMaybe);
+  const stockMaybe = stockFilters(datesMaybe, searchParams);
   const seatsMaybe = seatsSearchParams(seats, datesMaybe);
   const sortMaybe = sort === config.search.sortConfig.relevanceKey ? {} : { sort };
-
+  
   const params = {
     // The params that are related to listing fields and categories are prepared here.
     // We add handler functions that check category and integer range configurations.
@@ -359,6 +367,7 @@ export const searchListings = (searchParams, config) => (dispatch, getState, sdk
     ...sortMaybe,
     perPage,
   };
+  console.log('🔍 SEARCH DEBUG - Final API Params:', params);
 
   return sdk.listings
     .query(params)
@@ -435,6 +444,7 @@ export const loadData = (params, search, config) => (dispatch, getState, sdk) =>
         'publicData.transactionProcessAlias',
         'publicData.unitType',
         'publicData.cardStyle',
+        'stock', 
         // These help rendering of 'purchase' listings,
         // when transitioning from search page to listing page
         'publicData.pickupEnabled',

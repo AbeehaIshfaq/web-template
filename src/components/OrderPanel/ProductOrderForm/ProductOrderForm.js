@@ -5,6 +5,10 @@ import { FormattedMessage, useIntl } from '../../../util/reactIntl';
 import { propTypes } from '../../../util/types';
 import { numberAtLeast, required } from '../../../util/validators';
 import { PURCHASE_PROCESS_NAME } from '../../../transactions/transaction';
+import { useCurrency } from '../../../context/CurrencyContext';
+import { convertPriceForUser } from '../../../util/currencyConversion';
+import CurrencySelector from '../../../components/CurrencySelector/CurrencySelector';
+
 
 import {
   Form,
@@ -136,6 +140,26 @@ const renderForm = formRenderProps => {
     values,
   } = formRenderProps;
 
+  // Add FormSpy for currency changes
+  const handleCurrencyChange = (formValues) => {
+    const { currencySelector } = formValues.values || {};
+    
+    // When currency changes, refetch line items if needed
+    if (mounted && currencySelector) {
+      const { quantity, deliveryMethod } = formValues.values;
+      handleFetchLineItems({
+        quantity,
+        deliveryMethod,
+        displayDeliveryMethod,
+        listingId,
+        isOwnListing,
+        fetchLineItemsInProgress,
+        onFetchTransactionLineItems,
+      });
+    }
+  };
+
+
   // Note: don't add custom logic before useEffect
   useEffect(() => {
     setMounted(true);
@@ -173,21 +197,27 @@ const renderForm = formRenderProps => {
   // In case quantity and deliveryMethod are missing focus on that select-input.
   // Otherwise continue with the default handleSubmit function.
   const handleFormSubmit = e => {
-    const { quantity, deliveryMethod } = values || {};
-    if (!quantity || quantity < 1) {
-      e.preventDefault();
-      // Blur event will show validator message
-      formApi.blur('quantity');
-      formApi.focus('quantity');
-    } else if (displayDeliveryMethod && !deliveryMethod) {
-      e.preventDefault();
-      // Blur event will show validator message
-      formApi.blur('deliveryMethod');
-      formApi.focus('deliveryMethod');
-    } else {
-      handleSubmit(e);
-    }
-  };
+  console.log('Buy Now button clicked!');
+  console.log('Form values:', { values, quantity: values?.quantity, deliveryMethod: values?.deliveryMethod });
+  console.log('displayDeliveryMethod:', displayDeliveryMethod);
+  console.log('🚀 handleSubmit called with:', values);
+  
+  const { quantity, deliveryMethod } = values || {};
+  if (!quantity || quantity < 1) {
+    console.log('❌ Validation failed: quantity missing or < 1');
+    e.preventDefault();
+    formApi.blur('quantity');
+    formApi.focus('quantity');
+  } else if (displayDeliveryMethod && !deliveryMethod) {
+    console.log('❌ Validation failed: delivery method missing');
+    e.preventDefault();
+    formApi.blur('deliveryMethod');
+    formApi.focus('deliveryMethod');
+  } else {
+    console.log('✅ Validation passed, calling handleSubmit');
+    handleSubmit(e);
+  }
+};
 
   const breakdownData = {};
   const showBreakdown =
@@ -219,9 +249,22 @@ const renderForm = formRenderProps => {
   const submitInProgress = fetchLineItemsInProgress;
   const submitDisabled = !hasStock;
 
+  console.log('🔍 Debug processName:', {
+  PURCHASE_PROCESS_NAME,
+  type: typeof PURCHASE_PROCESS_NAME,
+  stringified: JSON.stringify(PURCHASE_PROCESS_NAME)
+});
+
   return (
     <Form onSubmit={handleFormSubmit}>
       <FormSpy subscription={{ values: true }} onChange={handleOnChange} />
+
+       <CurrencySelector 
+        className={css.currencyField} 
+        formId={formId}
+        formApi={formApi} 
+      />
+
       {hasNoStockLeft ? null : hasOneItemLeft || !allowOrdersOfMultipleItems ? (
         <FieldTextInput
           id={`${formId}.quantity`}
@@ -268,7 +311,7 @@ const renderForm = formRenderProps => {
           <EstimatedCustomerBreakdownMaybe
             breakdownData={breakdownData}
             lineItems={lineItems}
-            currency={price.currency}
+            // currency={priceToUse.currency}
             marketplaceName={marketplaceName}
             processName={PURCHASE_PROCESS_NAME}
           />
@@ -327,6 +370,9 @@ const renderForm = formRenderProps => {
  */
 const ProductOrderForm = props => {
   const intl = useIntl();
+  const { isCanadian } = useCurrency(); // ADD THIS
+  const [convertedPrice, setConvertedPrice] = useState(null); // ADD THIS
+  const [priceConversionLoading, setPriceConversionLoading] =  useState(true);
   const {
     price,
     currentStock,
@@ -335,6 +381,32 @@ const ProductOrderForm = props => {
     displayDeliveryMethod,
     allowOrdersOfMultipleItems,
   } = props;
+
+   useEffect(() => {
+    const convertListingPrice = async () => {
+      if (price) {
+        setPriceConversionLoading(true);
+        try {
+          const converted = await convertPriceForUser(price, isCanadian);
+          console.log('🔄 ProductOrderForm price conversion:', {
+            original: price,
+            converted,
+            conversionHappened: converted !== price
+          });
+          setConvertedPrice(converted);
+        } catch (error) {
+          console.error('💥 Error converting price in ProductOrderForm:', error);
+          setConvertedPrice(price); // Fallback to original
+        } finally {
+          setPriceConversionLoading(false);
+        }
+      } else {
+        setPriceConversionLoading(false);
+      }
+    };
+
+    convertListingPrice();
+  }, [price, isCanadian]);
 
   // Should not happen for listings that go through EditListingWizard.
   // However, this might happen for imported listings.
@@ -360,16 +432,20 @@ const ProductOrderForm = props => {
   const hasMultipleDeliveryMethods = pickupEnabled && shippingEnabled;
   const initialValues = { ...quantityMaybe, ...deliveryMethodMaybe };
 
-  return (
-    <FinalForm
-      initialValues={initialValues}
-      hasMultipleDeliveryMethods={hasMultipleDeliveryMethods}
-      displayDeliveryMethod={displayDeliveryMethod}
-      {...props}
-      intl={intl}
-      render={renderForm}
-    />
-  );
+// ADD THIS LINE:
+const priceToUse = convertedPrice || price;
+
+return (
+  <FinalForm
+    initialValues={initialValues}
+    hasMultipleDeliveryMethods={hasMultipleDeliveryMethods}
+    displayDeliveryMethod={displayDeliveryMethod}
+    {...props}
+    price={priceToUse}  // CHANGE: Add this line to override the original price prop
+    intl={intl}
+    render={renderForm}
+  />
+);
 };
 
 export default ProductOrderForm;

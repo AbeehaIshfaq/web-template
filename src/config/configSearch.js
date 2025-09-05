@@ -62,7 +62,22 @@ export const priceFilter = {
 //   key: 'keywords',
 //   schemaType: 'keywords',
 // }
-
+export const stockTypeFilter = {
+  key: 'stockType',
+  schemaType: 'enum',
+  scope: 'public',
+  enumOptions: [
+    { option: 'solo', label: 'Solo' },
+    { option: 'group', label: 'Group' },
+  ],
+  filterConfig: {
+    label: 'Solo/Group',
+    filterType: 'SelectSingleFilter', // exact prop name
+    group: 'primary',
+  },
+  // optional: ensure it's enabled if your config helper checks that
+  enabled: true,
+};
 export const sortConfig = {
   // Enable/disable the sorting control in the SearchPage
   active: true,

@@ -29,17 +29,17 @@ import css from './ListingCard.module.css';
 
 const MIN_LENGTH_FOR_LONG_WORDS = 10;
 
-// MODIFIED: Enhanced priceData function with currency conversion and debugging
+// FIXED: Enhanced priceData function - removed currency mismatch check
 const priceData = async (price, currency, intl, isCanadian) => {
-  console.log('💰 ListingCard priceData called:', { 
-    price, 
-    currency, 
+  console.log('💰 ListingCard priceData called:', {
+    price,
+    currency,
     isCanadian,
     priceExists: !!price,
     priceCurrency: price?.currency,
-    priceAmount: price?.amount 
+    priceAmount: price?.amount
   });
-  
+
   if (!price) {
     console.log('💰 No price provided to priceData');
     return {};
@@ -48,43 +48,46 @@ const priceData = async (price, currency, intl, isCanadian) => {
   // Convert price for Canadian users
   console.log('🔄 Calling convertPriceForUser from ListingCard...');
   const displayPrice = await convertPriceForUser(price, isCanadian);
-  console.log('✅ Received converted price:', { 
+  console.log('✅ Received converted price:', {
     originalPrice: price,
     displayPrice,
-    conversionHappened: displayPrice !== price 
+    conversionHappened: displayPrice !== price
   });
-  
-  if (displayPrice && displayPrice.currency === currency) {
-    const formattedPrice = formatMoney(intl, displayPrice);
-    console.log('💰 Price formatted successfully:', { 
-      displayPrice, 
-      formattedPrice 
-    });
-    return { formattedPrice, priceTitle: formattedPrice };
-  } else if (displayPrice) {
-    console.log('⚠️ Currency mismatch - using unsupported price format:', { 
-      displayPriceCurrency: displayPrice.currency, 
-      expectedCurrency: currency 
-    });
-    return {
-      formattedPrice: intl.formatMessage(
-        { id: 'ListingCard.unsupportedPrice' },
-        { currency: displayPrice.currency }
-      ),
-      priceTitle: intl.formatMessage(
-        { id: 'ListingCard.unsupportedPriceTitle' },
-        { currency: displayPrice.currency }
-      ),
-    };
+
+  // FIXED: Removed currency mismatch check since both USD and CAD are supported
+  if (displayPrice) {
+    try {
+      const formattedPrice = formatMoney(intl, displayPrice);
+      console.log('💰 Price formatted successfully:', {
+        displayPrice,
+        formattedPrice,
+        currency: displayPrice.currency
+      });
+      return { formattedPrice, priceTitle: formattedPrice };
+    } catch (error) {
+      // Fallback only if formatMoney actually fails
+      console.error('💥 formatMoney failed:', error);
+      console.log('⚠️ Using fallback price format for currency:', displayPrice.currency);
+      return {
+        formattedPrice: intl.formatMessage(
+          { id: 'ListingCard.unsupportedPrice' },
+          { currency: displayPrice.currency }
+        ),
+        priceTitle: intl.formatMessage(
+          { id: 'ListingCard.unsupportedPriceTitle' },
+          { currency: displayPrice.currency }
+        ),
+      };
+    }
   }
-  
+
   console.log('💰 No displayPrice available - returning empty object');
   return {};
 };
 
 const LazyImage = lazyLoadWithDimensions(ResponsiveImage, { loadAfterInitialRendering: 3000 });
 
-// MODIFIED: Enhanced PriceMaybe component with async price conversion
+// FIXED: Enhanced PriceMaybe component with better error handling
 const PriceMaybe = props => {
   const { price, publicData, config, intl, listingTypeConfig, isCanadian } = props;
   const [priceState, setPriceState] = useState({ formattedPrice: '', priceTitle: '' });
@@ -97,13 +100,13 @@ const PriceMaybe = props => {
 
   // Convert price asynchronously
   useEffect(() => {
-    console.log('🔄 PriceMaybe useEffect triggered:', { 
-      price, 
-      isCanadian, 
+    console.log('🔄 PriceMaybe useEffect triggered:', {
+      price,
+      isCanadian,
       showPrice,
-      currencyConfig: config.currency 
+      currencyConfig: config.currency
     });
-    
+
     const convertPrice = async () => {
       setIsLoading(true);
       console.log('⏳ Starting price conversion in PriceMaybe...');
@@ -114,7 +117,7 @@ const PriceMaybe = props => {
         setPriceState(convertedPriceData);
       } catch (error) {
         console.error('💥 Error converting price in PriceMaybe:', error);
-        // Fallback to original price
+        // Fallback to original price formatting
         const fallbackData = price ? {
           formattedPrice: formatMoney(intl, price),
           priceTitle: formatMoney(intl, price)
@@ -133,7 +136,6 @@ const PriceMaybe = props => {
   const isPriceVariationsInUse = isPriceVariationsEnabled(publicData, listingTypeConfig);
   const hasMultiplePriceVariants = isPriceVariationsInUse && publicData?.priceVariants?.length > 1;
   const isBookable = isBookingProcessAlias(publicData?.transactionProcessAlias);
-
   const { formattedPrice, priceTitle } = priceState;
 
   // Show loading state briefly

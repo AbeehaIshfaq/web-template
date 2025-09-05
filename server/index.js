@@ -85,6 +85,8 @@ const errorPage404 = fs.readFileSync(path.join(buildPath, '404.html'), 'utf-8');
 // from paths like /asdf/index.php, //cms/wp-includes/wlwmanifest.xml, etc.
 // There's no need to pass those to React app rendering as it causes unnecessary asset fetches.
 // Note: you might want to do this on the edge server instead.
+
+
 app.use(
   /.*(\.php|\.php7|\/wp-.*\/.*|cgi-bin.*|htdocs\.rar|htdocs\.zip|root\.7z|root\.rar|root\.zip|www\.7z|www\.rar|wwwroot\.7z)$/,
   (req, res) => {

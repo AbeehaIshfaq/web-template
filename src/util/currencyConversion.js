@@ -134,55 +134,76 @@ const convertUsdToCadMoney = (usdPrice, exchangeRate) => {
 };
 
 /**
- * Main function to convert price for Canadian users
- * @param {Money} price - Original price (usually USD)
+ * Main function to convert price for user's preferred currency
+ * @param {Money} price - Original price (USD or CAD)
  * @param {boolean} isCanadian - Whether user is Canadian
  * @returns {Promise<Money>} Converted price or original price
  */
 export const convertPriceForUser = async (price, isCanadian) => {
-  console.log('🏁 convertPriceForUser called:', { 
-    price, 
+  console.log('🏁 convertPriceForUser called:', {
+    price,
     isCanadian,
     priceExists: !!price,
     priceCurrency: price?.currency,
-    priceAmount: price?.amount 
+    priceAmount: price?.amount
   });
-  
-  // If user is not Canadian or price is not USD, return original price
-  if (!isCanadian) {
-    console.log('🇺🇸 User is not Canadian - returning original price');
-    return price;
-  }
-  
+
   if (!price) {
     console.log('💰 No price provided - returning null');
     return price;
   }
-  
-  if (price.currency !== 'USD') {
-    console.log('💱 Price is not USD (' + price.currency + ') - returning original price');
-    return price;
+
+  // FIXED LOGIC: Handle conversions based on user preference and price currency
+  if (isCanadian) {
+    // Canadian users should see everything in CAD
+    if (price.currency === 'USD') {
+      console.log('🇨🇦 Canadian user with USD price - converting to CAD...');
+      try {
+        const exchangeRate = await getExchangeRate();
+        const convertedPrice = convertUsdToCadMoney(price, exchangeRate);
+        console.log('💰 USD→CAD conversion result:', {
+          originalPrice: `${(price.amount / 100).toFixed(2)} USD`,
+          convertedPrice: `C${(convertedPrice.amount / 100).toFixed(2)} CAD`,
+          exchangeRate: exchangeRate
+        });
+        return convertedPrice;
+      } catch (error) {
+        console.error('💥 Error converting USD to CAD:', error);
+        console.log('🔄 Returning original USD price due to conversion error');
+        return price;
+      }
+    } else if (price.currency === 'CAD') {
+      console.log('🇨🇦 Canadian user with CAD price - no conversion needed');
+      return price;
+    }
+  } else {
+    // Non-Canadian users should see everything in USD
+    if (price.currency === 'CAD') {
+      console.log('🇺🇸 Non-Canadian user with CAD price - converting to USD...');
+      try {
+        const exchangeRate = await getExchangeRate();
+        const usdAmount = Math.round(price.amount / exchangeRate);
+        const convertedPrice = new Money(usdAmount, 'USD');
+        console.log('💰 CAD→USD conversion result:', {
+          originalPrice: `C${(price.amount / 100).toFixed(2)} CAD`,
+          convertedPrice: `${(usdAmount / 100).toFixed(2)} USD`,
+          exchangeRate: exchangeRate
+        });
+        return convertedPrice;
+      } catch (error) {
+        console.error('💥 Error converting CAD to USD:', error);
+        console.log('🔄 Returning original CAD price due to conversion error');
+        return price;
+      }
+    } else if (price.currency === 'USD') {
+      console.log('🇺🇸 Non-Canadian user with USD price - no conversion needed');
+      return price;
+    }
   }
-  
-  console.log('🇨🇦 Canadian user with USD price - converting...');
-  
-  try {
-    const exchangeRate = await getExchangeRate();
-    const convertedPrice = convertUsdToCadMoney(price, exchangeRate);
-    
-    console.log('💰 Final conversion result:', {
-      originalPrice: `${(price.amount / 100).toFixed(2)} USD`,
-      convertedPrice: `C${(convertedPrice.amount / 100).toFixed(2)} CAD`,
-      exchangeRate: exchangeRate
-    });
-    
-    return convertedPrice;
-    
-  } catch (error) {
-    console.error('💥 Error converting price:', error);
-    console.log('🔄 Returning original price due to conversion error');
-    return price; // Return original price if conversion fails
-  }
+
+  // Fallback for unsupported currencies
+  console.log('💱 Unsupported currency (' + price.currency + ') - returning original price');
+  return price;
 };
 
 /**

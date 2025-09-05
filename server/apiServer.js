@@ -4,6 +4,11 @@
 // Configure process.env with .env.* files
 require('./env').configureEnv();
 
+console.log('Stripe keys loaded:', {
+  secret: process.env.STRIPE_SECRET_KEY ? 'Present' : 'Missing',
+  publishable: process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY ? 'Present' : 'Missing'
+});
+
 const express = require('express');
 const compression = require('compression');
 const cookieParser = require('cookie-parser');

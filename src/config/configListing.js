@@ -51,8 +51,11 @@
  *   - placeholderMessage (optional): Default message for user input.
  *   - isRequired (optional):         Is the field required for providers to fill
  *   - requiredMessage (optional):    Message for those fields, which are mandatory.
- */
-export const listingFields = [
+
+
+// In src/config/configListing.js, inside listingFields array:
+
+
   // {
   //   "scope": "public",
   //   "label": "Gears",
@@ -284,6 +287,31 @@ export const listingTypes = [
       payoutDetails: true,
     },
   },
+  // In src/config/configListing.js, inside listingFields array:
+{
+  key: 'stockType',
+  scope: 'public',
+  schemaType: 'enum',
+  enumOptions: [
+    { option: 'solo', label: 'Solo' },
+    { option: 'group', label: 'Group' },
+  ],
+   filterConfig: {
+    indexForSearch: true, // Must be true
+    label: 'Solo/Group',
+    filterType: 'SelectSingleFilter',
+    group: 'secondary', // Matches Console setting
+  },
+  showConfig: {
+    label: 'Stock Type',
+    isDetail: true,
+  },
+  saveConfig: {
+    label: 'Stock Type',
+    placeholderMessage: 'Select stock type',
+    isRequired: false,
+  },
+}
   // // Here are some examples for other listingTypes
   // // TODO: SearchPage does not work well if both booking and product selling are used at the same time
   // {

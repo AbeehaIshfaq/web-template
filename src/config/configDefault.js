@@ -107,6 +107,7 @@ const defaultConfig = {
     // You could still rely on built-in variables and comment these out.
     localization: '/general/localization.json',
     accessControl: '/general/access-control.json',
+     favicon: '/favicon.ico'
     // NOTE: we don't fetch commission configuration here but on the server-side
   },
 

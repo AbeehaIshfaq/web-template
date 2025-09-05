@@ -1,0 +1,42 @@
+/* CurrencySelector.module.css */
+
+.currencyField {
+  margin-bottom: 1rem;
+}
+
+.currencyField label {
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.currencyField select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 1rem;
+  background-color: white;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.currencyField select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.currencyField select:hover {
+  border-color: #9ca3af;
+}
+
+@media (max-width: 768px) {
+  .currencyField {
+    margin-bottom: 0.75rem;
+  }
+  
+  .currencyField select {
+    padding: 0.625rem;
+    font-size: 0.9rem;
+  }
+}

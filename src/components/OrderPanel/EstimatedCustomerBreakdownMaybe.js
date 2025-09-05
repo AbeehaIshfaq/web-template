@@ -25,8 +25,13 @@
  * currently the API doesn't support that for logged out users, and we
  * are forced to estimate the information here.
  */
-import React from 'react';
+
+import React, { useEffect, useState } from 'react';
+import { useCurrency } from '../../context/CurrencyContext';
+import { convertPriceForUser } from '../../util/currencyConversion';
 import Decimal from 'decimal.js';
+
+
 
 import { types as sdkTypes } from '../../util/sdkLoader';
 import { FormattedMessage } from '../../util/reactIntl';
@@ -85,7 +90,7 @@ const estimatedCustomerTransaction = (
   processName,
   marketplaceCurrency
 ) => {
-  const transitions = process?.transitions;
+   const transitions = process?.transitions || {}; 
   const now = new Date();
   const customerLineItems = lineItems.filter(item => item.includeFor.includes('customer'));
   const providerLineItems = lineItems.filter(item => item.includeFor.includes('provider'));
@@ -97,6 +102,15 @@ const estimatedCustomerTransaction = (
       ? { booking: estimatedBooking(bookingStart, bookingEnd, lineItemUnitType, timeZone) }
       : {};
 
+       const lastTransition = transitions.REQUEST_PAYMENT || 'request-payment';
+  const transitionsList = transitions.REQUEST_PAYMENT 
+    ? [{
+        createdAt: now,
+        by: TX_TRANSITION_ACTOR_CUSTOMER,
+        transition: transitions.REQUEST_PAYMENT,
+      }]
+    : [];
+
   return {
     id: new UUID('estimated-transaction'),
     type: 'transaction',
@@ -104,17 +118,11 @@ const estimatedCustomerTransaction = (
       createdAt: now,
       processName,
       lastTransitionedAt: now,
-      lastTransition: transitions.REQUEST_PAYMENT,
+      lastTransition: lastTransition,
       payinTotal,
       payoutTotal,
       lineItems: customerLineItems,
-      transitions: [
-        {
-          createdAt: now,
-          by: TX_TRANSITION_ACTOR_CUSTOMER,
-          transition: transitions.REQUEST_PAYMENT,
-        },
-      ],
+       transitions: transitionsList,
     },
     ...bookingMaybe,
   };
@@ -124,18 +132,88 @@ const EstimatedCustomerBreakdownMaybe = props => {
   const { breakdownData = {}, lineItems, timeZone, currency, marketplaceName, processName } = props;
   const { startDate, endDate } = breakdownData;
 
-  let process = null;
-  try {
-    process = getProcess(processName);
-  } catch (e) {
-    return (
-      <div className={css.error}>
-        <FormattedMessage id="OrderPanel.unknownTransactionProcess" />
-      </div>
-    );
+   const { isCanadian } = useCurrency();
+  const [convertedLineItems, setConvertedLineItems] = useState(null);
+  const [conversionLoading, setConversionLoading] = useState(true);
+
+  useEffect(() => {
+    const convertLineItemPrices = async () => {
+      if (!lineItems || lineItems.length === 0) {
+        setConversionLoading(false);
+        return;
+      }
+
+      try {
+        console.log('🔄 Converting line items in EstimatedCustomerBreakdownMaybe...');
+        
+        const converted = await Promise.all(
+          lineItems.map(async (lineItem) => {
+            if (lineItem.unitPrice && lineItem.lineTotal) {
+              const convertedUnitPrice = await convertPriceForUser(lineItem.unitPrice, isCanadian);
+              const convertedLineTotal = await convertPriceForUser(lineItem.lineTotal, isCanadian);
+              
+              console.log(`📦 Converted line item:`, {
+                code: lineItem.code,
+                originalUnit: lineItem.unitPrice,
+                convertedUnit: convertedUnitPrice,
+                originalTotal: lineItem.lineTotal,
+                convertedTotal: convertedLineTotal
+              });
+              
+              return {
+                ...lineItem,
+                unitPrice: convertedUnitPrice,
+                lineTotal: convertedLineTotal
+              };
+            }
+            return lineItem;
+          })
+        );
+        
+        setConvertedLineItems(converted);
+        console.log('✅ All line items converted successfully');
+      } catch (error) {
+        console.error('💥 Error converting line items:', error);
+        setConvertedLineItems(lineItems); // Fallback to original
+      } finally {
+        setConversionLoading(false);
+      }
+    };
+
+    convertLineItemPrices();
+  }, [lineItems, isCanadian]);
+
+   if (conversionLoading && lineItems && lineItems.length > 0) {
+    return <div>Converting prices...</div>;
   }
 
-  const unitLineItem = lineItems?.find(
+  console.log('🔍 About to call getProcess with:', {
+  processName,
+  type: typeof processName,
+  stringified: JSON.stringify(processName)
+});
+
+let process = null;
+try {
+  process = getProcess(processName);
+  console.log('✅ getProcess succeeded:', process);
+} catch (e) {
+  console.error('❌ getProcess failed:', e);
+  console.log('Error details:', {
+    message: e.message,
+    processName,
+    processNameType: typeof processName
+  });
+  return (
+    <div className={css.error}>
+      <FormattedMessage id="OrderPanel.unknownTransactionProcess" />
+    </div>
+  );
+}
+
+  const lineItemsToUse = convertedLineItems || lineItems;
+
+   const unitLineItem = lineItemsToUse?.find(
     item => LISTING_UNIT_TYPES.includes(item.code) && !item.reversal
   );
   const lineItemUnitType = unitLineItem?.code;
@@ -146,7 +224,7 @@ const EstimatedCustomerBreakdownMaybe = props => {
   const tx =
     hasLineItems && hasRequiredBookingData
       ? estimatedCustomerTransaction(
-          lineItems,
+        lineItemsToUse,
           startDate,
           endDate,
           lineItemUnitType,

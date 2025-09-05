@@ -462,6 +462,8 @@
   "InboxPage.salesTitle": "Inbox: As a listing author",
   "InboxPage.seats": "Number of seats: {seats}",
   "InboxPage.title": "Inbox",
+  "StockTypeFilter.anyStock": "Any stock type",
+  "FilterComponent.stockTypeLabel": "Stock Type",
   "InquiryForm.heading": "Inquire about {listingTitle}",
   "InquiryForm.messageLabel": "Message to {authorDisplayName}",
   "InquiryForm.messagePlaceholder": "Hello {authorDisplayName}! I'm looking forward to…",
@@ -1187,5 +1189,9 @@
   "UserDisplayName.deleted": "Deleted user",
   "UserNav.accountSettings": "Account settings",
   "UserNav.profileSettings": "Profile settings",
-  "UserNav.yourListings": "Your listings"
+  "UserNav.yourListings": "Your listings",
+  "CurrencySelector.label": "Currency",
+  "CurrencySelector.autoOption": "Auto ({currency})",
+  "CurrencySelector.usdOption": "US Dollar (USD)",
+  "CurrencySelector.cadOption": "Canadian Dollar (CAD)"
 }
