@@ -271,6 +271,28 @@ export const listingFields = [
 
 export const listingTypes = [
   {
+    key: 'isSolo',
+    scope: 'public',
+    schemaType: 'boolean',
+    filterConfig: {
+      indexForSearch: true,
+      filterType: 'SelectSingleFilter',
+      label: 'Solo Items',
+      group: 'primary',
+    },
+  },
+  {
+    key: 'isGroups', 
+    scope: 'public',
+    schemaType: 'boolean',
+    filterConfig: {
+      indexForSearch: true,
+      filterType: 'SelectSingleFilter', 
+      label: 'Group Items',
+      group: 'primary',
+    },
+  },
+  {
     listingType: 'daily-booking',
     label: 'Daily booking',
     transactionType: {

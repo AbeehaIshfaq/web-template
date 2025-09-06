@@ -288,6 +288,9 @@ export const ListingPageComponent = props => {
   // https://developers.google.com/search/docs/advanced/structured-data/product
   const productURL = `${config.marketplaceRootURL}${location.pathname}${location.search}${location.hash}`;
   const currentStock = currentListing.currentStock?.attributes?.quantity || 0;
+    console.log('Current Stock:', currentStock);
+  console.log("1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+  
   const schemaAvailability = !currentListing.currentStock
     ? null
     : currentStock > 0

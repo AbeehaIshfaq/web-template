@@ -651,7 +651,12 @@ export function requestUpdateListing(tab, data, config) {
 
     // If images should be saved, create array out of the image UUIDs for the API call
     const imageProperty = typeof images !== 'undefined' ? { images: imageIds(images) } : {};
+    
+    // Auto-calculate availability type based on stock quantity
+console.log('DEBUG: Checking for automatic calculation', { rest, stockUpdate });
+
     const ownListingUpdateValues = { id, ...imageProperty, ...rest };
+    
     const imageVariantInfo = getImageVariantInfo(config.layout.listingImage);
     const queryParams = {
       expand: true,

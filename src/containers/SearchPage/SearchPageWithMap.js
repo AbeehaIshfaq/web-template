@@ -63,8 +63,11 @@ import SearchFiltersMobile from './SearchFiltersMobile/SearchFiltersMobile';
 import SortBy from './SortBy/SortBy';
 import SearchResultsPanel from './SearchResultsPanel/SearchResultsPanel';
 import NoSearchResultsMaybe from './NoSearchResultsMaybe/NoSearchResultsMaybe';
+import AvailabilityFilter from './AvailabilityFilter/AvailabilityFilter';
 
 import css from './SearchPage.module.css';
+
+console.log('SearchPageWithMap.js is loading - TEST DIV should appear');
 
 const MODAL_BREAKPOINT = 768; // Search is in modal on mobile layout
 const SEARCH_WITH_MAP_DEBOUNCE = 300; // Little bit of debounce before search is initiated.
@@ -72,6 +75,7 @@ const SEARCH_WITH_MAP_DEBOUNCE = 300; // Little bit of debounce before search is
 // Primary filters have their content in dropdown-popup.
 // With this offset we move the dropdown to the left a few pixels on desktop layout.
 const FILTER_DROPDOWN_OFFSET = -14;
+
 
 const getSelectedSecondaryFiltersCount = (
   validQueryParams,
@@ -599,6 +603,7 @@ export class SearchPageComponent extends Component {
                     />
                   );
                 })}
+                <div style={{padding: '10px', background: 'red', color: 'white'}}>TEST</div>
               </SearchFiltersPrimary>
             </MainPanelHeader>
             {isSecondaryFiltersOpen ? (

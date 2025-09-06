@@ -59,8 +59,10 @@ import SearchFiltersMobile from './SearchFiltersMobile/SearchFiltersMobile';
 import SortBy from './SortBy/SortBy';
 import SearchResultsPanel from './SearchResultsPanel/SearchResultsPanel';
 import NoSearchResultsMaybe from './NoSearchResultsMaybe/NoSearchResultsMaybe';
+import AvailabilityFilter from './AvailabilityFilter/AvailabilityFilter';
 
 import css from './SearchPage.module.css';
+console.log('SearchPageWithGrid.js is loading - GRID VERSION');
 
 const MODAL_BREAKPOINT = 768; // Search is in modal on mobile layout
 
@@ -75,6 +77,7 @@ export class SearchPageComponent extends Component {
     this.state = {
       isMobileModalOpen: false,
       currentQueryParams: validUrlQueryParamsFromProps(props),
+      quantityFilter: null,
     };
 
     this.onOpenMobileModal = this.onOpenMobileModal.bind(this);
@@ -86,6 +89,79 @@ export class SearchPageComponent extends Component {
 
     // SortBy
     this.handleSortBy = this.handleSortBy.bind(this);
+  }
+
+  // Add this method after the constructor
+filterListingsByQuantity(listings) {
+  if (!this.state.quantityFilter) {
+    return listings; // No filter active, return all listings
+  }
+
+  return listings.filter(listing => {
+    // Get sizesWithQuantity from publicData or currentStock
+    const sizesWithQuantity = listing.attributes?.publicData?.sizesWithQuantity || 
+                             listing.currentStock?.attributes?.sizesWithQuantity || [];
+    
+    console.log('Filtering listing:', listing.attributes?.title, 'sizesWithQuantity:', sizesWithQuantity);
+    
+    if (sizesWithQuantity.length === 0) {
+      // Fallback to basic currentStock if sizesWithQuantity not available
+      const quantity = listing.currentStock?.attributes?.quantity || 0;
+      if (this.state.quantityFilter === 'solo') {
+        return quantity === 1;
+      } else if (this.state.quantityFilter === 'groups') {
+        return quantity > 1;
+      }
+      return false;
+    }
+
+    if (this.state.quantityFilter === 'solo') {
+      // Solo: Only ONE size available with quantity = 1
+      return sizesWithQuantity.length === 1 && sizesWithQuantity[0][2] === 1;
+    } else if (this.state.quantityFilter === 'groups') {
+      // Groups: Multiple sizes OR any size with quantity > 1
+      return sizesWithQuantity.length > 1 || 
+             sizesWithQuantity.some(sizeData => sizeData[2] > 1);
+    }
+    
+    return true;
+  });
+}
+   componentDidMount() {
+    console.log('=== COMPONENT MOUNTED ===');
+    this.logListingData();
+  }
+
+  componentDidUpdate(prevProps) {
+    if (this.props.listings !== prevProps.listings) {
+      console.log('=== LISTINGS UPDATED ===');
+      this.logListingData();
+    }
+  }
+
+  logListingData() {
+    const { listings } = this.props;
+    console.log('Current URL:', window.location.href);
+    console.log('Total listings:', listings?.length || 0);
+    
+    if (listings && listings.length > 0) {
+      console.log('First listing data:', {
+        id: listings[0].id,
+        attributes: listings[0].attributes,
+        currentStock: listings[0].currentStock,
+        relationships: listings[0].relationships
+      });
+      
+      listings.slice(0, 3).forEach((listing, index) => {
+        console.log(`Listing ${index + 1} summary:`, {
+          id: listing.id?.uuid,
+          title: listing.attributes?.title,
+          price: listing.attributes?.price,
+          currentStock: listing.currentStock,
+          publicData: listing.attributes?.publicData
+        });
+      });
+    }
   }
 
   // Invoked when a modal is opened from a child component,
@@ -220,6 +296,31 @@ export class SearchPageComponent extends Component {
       e.currentTarget.blur();
     }
   }
+
+  // Add this right before render() method
+componentDidMount() {
+  console.log('=== LISTING DATA INSPECTION ===');
+  console.log('Total listings:', this.props.listings?.length);
+  if (this.props.listings && this.props.listings.length > 0) {
+    console.log('First listing full data:', this.props.listings[0]);
+    console.log('First listing attributes:', this.props.listings[0]?.attributes);
+    console.log('First listing publicData:', this.props.listings[0]?.attributes?.publicData);
+    console.log('First listing currentStock:', this.props.listings[0]?.currentStock);
+    
+    // Check all listings for stock/size data
+    this.props.listings.forEach((listing, index) => {
+      console.log(`Listing ${index + 1}:`, {
+        id: listing.id,
+        title: listing.attributes?.title,
+        currentStock: listing.currentStock,
+        stockQuantity: listing.currentStock?.attributes?.quantity,
+        publicData: listing.attributes?.publicData,
+        listingType: listing.attributes?.publicData?.listingType
+      });
+    });
+  }
+  console.log('=== END LISTING DATA INSPECTION ===');
+}
 
   render() {
     const {
@@ -405,6 +506,77 @@ export class SearchPageComponent extends Component {
                   />
                 );
               })}
+
+              {/* Client-Side Quantity Filter using sizesWithQuantity */}
+<div className={css.filter}>
+  <div style={{ fontWeight: '500', marginBottom: '12px', color: '#484848' }}>
+    Availability
+  </div>
+  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+    <label style={{ 
+      display: 'flex', 
+      alignItems: 'center', 
+      padding: '8px 0',
+      cursor: 'pointer',
+      fontSize: '14px',
+      color: '#484848'
+    }}>
+      <input
+        type="radio"
+        name="availability"
+        value="solo"
+        checked={this.state.quantityFilter === 'solo'}
+        onChange={() => {
+          console.log('Solo filter selected - 1 size with 1 item');
+          this.setState({ quantityFilter: 'solo' });
+        }}
+        style={{ marginRight: '8px' }}
+      />
+      Solo (1 size, 1 item)
+    </label>
+    <label style={{ 
+      display: 'flex', 
+      alignItems: 'center', 
+      padding: '8px 0',
+      cursor: 'pointer',
+      fontSize: '14px',
+      color: '#484848'
+    }}>
+      <input
+        type="radio"
+        name="availability"
+        value="groups"
+        checked={this.state.quantityFilter === 'groups'}
+        onChange={() => {
+          console.log('Groups filter selected - multiple sizes or quantities');
+          this.setState({ quantityFilter: 'groups' });
+        }}
+        style={{ marginRight: '8px' }}
+      />
+      Groups (multiple sizes/items)
+    </label>
+    {this.state.quantityFilter && (
+      <button
+        onClick={() => {
+          console.log('Clear filter');
+          this.setState({ quantityFilter: null });
+        }}
+        style={{
+          background: 'none',
+          border: 'none',
+          color: '#B0B0B0',
+          cursor: 'pointer',
+          fontSize: '14px',
+          textAlign: 'left',
+          padding: '8px 0'
+        }}
+      >
+        Clear
+      </button>
+    )}
+  </div>
+</div>
+
               <button className={css.resetAllButton} onClick={e => this.handleResetAll(e)}>
                 <FormattedMessage id={'SearchFiltersMobile.resetAll'} />
               </button>
@@ -480,7 +652,7 @@ export class SearchPageComponent extends Component {
                 ) : null}
                 <SearchResultsPanel
                   className={css.searchListingsPanel}
-                  listings={listings}
+                  listings={this.filterListingsByQuantity(listings)}
                   pagination={listingsAreLoaded ? pagination : null}
                   search={parse(location.search)}
                   isMapVariant={false}

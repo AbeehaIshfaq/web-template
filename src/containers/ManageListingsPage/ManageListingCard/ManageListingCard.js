@@ -420,6 +420,7 @@ export const ManageListingCard = props => {
     onToggleMenu,
     renderSizes,
   } = props;
+  console.log("3aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
   const classes = classNames(rootClassName || css.root, className);
   const currentListing = ensureOwnListing(listing);
   const id = currentListing.id.uuid;
@@ -439,6 +440,9 @@ export const ManageListingCard = props => {
   const showListingImage = requireListingImage(foundListingTypeConfig);
 
   const currentStock = currentListing.currentStock?.attributes?.quantity;
+    console.log('Current Stock:', currentStock);
+  console.log("2aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+  
   const isOutOfStock = currentStock === 0;
   const showOutOfStockOverlay =
     !isBookable && isOutOfStock && !isPendingApproval && !isClosed && !isDraft;
